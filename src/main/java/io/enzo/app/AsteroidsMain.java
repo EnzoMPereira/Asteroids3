@@ -1,13 +1,12 @@
 package io.enzo.app;
 
-import java.util.*;
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
-
 
 import io.enzo.effects.Effect;
 import io.enzo.extras.Action;
@@ -17,101 +16,109 @@ import processing.core.PApplet;
 import processing.core.PVector;
 
 public class AsteroidsMain extends PApplet {
-	static Player p;
+
+    static Player p;
 
     boolean up, down, left, right;
 
-	ArrayList<Bullet> bullets;
-	ArrayList<Asteroid> asteroids;
-	ArrayList<Effect> effects = new ArrayList<Effect>(); //TODO: explosion effects, shooting effects
+    ArrayList<Bullet> bullets;
+    ArrayList<Asteroid> asteroids;
+    ArrayList<Effect> effects = new ArrayList<>();
 
-	AudioPlayer shoot, explosion;
-
-	CircleButton shootButton;
+    AudioPlayer shoot, explosion;
 
     CircleButton restartButton;
 
-	long elapsedTime, startTime;
-	boolean canShoot = true;
+    long elapsedTime, startTime;
+    boolean canShoot = true;
 
-	public void settings() {
-		size(displayWidth, displayHeight);
+    PVector pMouse;
+    PVector dragDir = new PVector(0, 0);
 
-		orientation(LANDSCAPE);
-		//TODO: decrease resolution
-	}
+    long tempoUltimoAumento = 0;
+    int intervaloDificuldade = 30000;
 
-	public void setup() {
-		try {
-			shoot = new AudioPlayer("bin/shoot.wav");
-			explosion = new AudioPlayer("bin/explosion.wav");
-		} catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+    int quantidadeSpawn = 1;
 
-		Action action = (AsteroidsMain a) -> a.shoot();
-		shootButton = new CircleButton(width * 0.2f, height * 0.8f, 100, action, this);
+    int score = 0;
+
+    public void settings() {
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        size(screenSize.width, screenSize.height);
+    }
+
+    public void setup() {
+        try {
+            shoot = new AudioPlayer("src/main/java/io/enzo/shoot.wav");
+            explosion = new AudioPlayer("src/main/java/io/enzo/explosion.wav");
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            e.printStackTrace();
+        }
 
         Action restartAction = (AsteroidsMain a) -> a.restartGame();
-
         restartButton = new CircleButton(width / 2, height / 2 + 100, 80, restartAction, this);
 
-		bullets = new ArrayList<Bullet>();
-		asteroids = new ArrayList<Asteroid>();
+        bullets = new ArrayList<>();
+        asteroids = new ArrayList<>();
 
-		for (int i = 0; i < 6; i++)
-			asteroids.add(new Asteroid(random(width), random(height), this));
-
-		p = new Player(width / 2, height / 2);
-
-		frameRate(60);
-
-		startTime = System.currentTimeMillis();
-		elapsedTime = 0L;
-	}
-
-    void restartGame() {
+        for (int i = 0; i < 6; i++) {
+            asteroids.add(new Asteroid(random(width), random(height), this));
+        }
 
         p = new Player(width / 2, height / 2);
 
-        // limpar listas
+        frameRate(60);
+
+        startTime = System.currentTimeMillis();
+        elapsedTime = 0L;
+
+        tempoUltimoAumento = System.currentTimeMillis();
+    }
+
+    void restartGame() {
+        p = new Player(width / 2, height / 2);
+
         bullets.clear();
         asteroids.clear();
         effects.clear();
 
-
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 6; i++) {
             asteroids.add(new Asteroid(random(width), random(height), this));
-
+        }
 
         startTime = System.currentTimeMillis();
         elapsedTime = 0;
 
+        score = 0;
 
         loop();
     }
 
-	public void draw() {
+    public void draw() {
 
         PVector mouse = new PVector(mouseX, mouseY);
         PVector dirToMouse = PVector.sub(mouse, p.getPosition());
         dirToMouse.normalize();
-
         p.setDirection(dirToMouse);
 
         if (mousePressed && mouseButton == LEFT) {
             shoot();
         }
 
-		elapsedTime = (new Date()).getTime() - startTime;
+        elapsedTime = (new Date()).getTime() - startTime;
 
-		background(0);
+        if (System.currentTimeMillis() - tempoUltimoAumento >= intervaloDificuldade) {
+            quantidadeSpawn++;
+            Asteroid.maxSpeed += 0.5f;
+            tempoUltimoAumento = System.currentTimeMillis();
+        }
 
-		stroke(255);
-		noFill();
+        background(0);
 
-		p.update(this);
+        stroke(255);
+        noFill();
+
+        p.update(this);
 
         PVector dir = new PVector(0, 0);
 
@@ -122,45 +129,51 @@ public class AsteroidsMain extends PApplet {
 
         p.addForce(PVector.mult(dir, 0.5f));
 
-         mouse = new PVector(mouseX, mouseY);
-         dir = PVector.sub(mouse, p.getPosition());
+        mouse = new PVector(mouseX, mouseY);
+        dir = PVector.sub(mouse, p.getPosition());
 
         if (dir.mag() > 0) {
             dir.normalize();
             p.setDirection(dir);
         }
 
-		p.show(this);
+        p.show(this);
 
-		for (int i = bullets.size() - 1; i >= 0; i--) {
-			if (bullets.get(i).update(this)) {
-				bullets.remove(i);
-				continue;
-			}
+        for (int i = bullets.size() - 1; i >= 0; i--) {
 
-			int j = bullets.get(i).collide(asteroids, this);
+            if (bullets.get(i).update(this)) {
+                bullets.remove(i);
+                continue;
+            }
 
-			if (j != -1) {
-				explosion.play();
+            int j = bullets.get(i).collide(asteroids, this);
 
-				effects.add(new Effect(asteroids.get(j), this));
+            if (j != -1) {
+                explosion.play();
 
-				asteroids.get(j).boom(bullets.get(i), this).forEach((a) -> {
-					asteroids.add(a);
-				});
+                effects.add(new Effect(asteroids.get(j), this));
 
-				bullets.remove(i);
+                asteroids.get(j).boom(bullets.get(i), this)
+                        .forEach(a -> asteroids.add(a));
 
-				asteroids.remove(j);
+                score += 10;
 
-				continue;
-			}
+                bullets.remove(i);
+                asteroids.remove(j);
+                continue;
+            }
 
-			bullets.get(i).show(this);
-		}
+            bullets.get(i).show(this);
+        }
 
-		stroke(255);
-		noFill();
+        stroke(255);
+        noFill();
+
+        if (frameCount % 60 == 0) {
+            for (int i = 0; i < quantidadeSpawn; i++) {
+                asteroids.add(new Asteroid(random(width), random(height), this));
+            }
+        }
 
         for (Asteroid a : asteroids) {
             a.update(this);
@@ -173,14 +186,15 @@ public class AsteroidsMain extends PApplet {
             }
         }
 
-		for (int i = effects.size() - 1; i >= 0; i--) {
-			effects.get(i).update(this);
+        for (int i = effects.size() - 1; i >= 0; i--) {
+            effects.get(i).update(this);
 
-			if (effects.get(i).delete())
-				effects.remove(i);
-			else
-				effects.get(i).show(this);
-		}
+            if (effects.get(i).delete()) {
+                effects.remove(i);
+            } else {
+                effects.get(i).show(this);
+            }
+        }
 
         if (p.isDead()) {
             background(0);
@@ -190,7 +204,6 @@ public class AsteroidsMain extends PApplet {
             textSize(50);
             text("GAME OVER", width / 2, height / 2);
 
-
             noStroke();
             fill(255, 100);
             restartButton.show(this);
@@ -199,7 +212,6 @@ public class AsteroidsMain extends PApplet {
             textSize(20);
             text("RESTART", width / 2, height / 2 + 100);
 
-
             if (mousePressed) {
                 restartButton.update(mouseX, mouseY);
             }
@@ -207,9 +219,19 @@ public class AsteroidsMain extends PApplet {
             return;
         }
 
-		GUI();
+        fill(255);
+        textSize(20);
+        textAlign(RIGHT, TOP);
+        text("Score: " + score, width - 20, 20);
+
+        GUI();
         drawLives();
-	}
+    }
+
+    void GUI() {
+        noStroke();
+        fill(255, 100);
+    }
 
     void drawLives() {
         fill(255, 0, 0);
@@ -219,8 +241,6 @@ public class AsteroidsMain extends PApplet {
             ellipse(40 + i * 40, 40, 20, 20);
         }
     }
-
-
 
     public void keyPressed() {
         if (key == 'w' || key == 'W') up = true;
@@ -236,64 +256,37 @@ public class AsteroidsMain extends PApplet {
         if (key == 'd' || key == 'D') right = false;
     }
 
-	PVector pMouse;
-
-	public void mousePressed() {
+    public void mousePressed() {
         if (mouseButton == LEFT) {
             shoot();
         }
-		if (pMouse == null)
-			pMouse = new PVector(mouseX, mouseY);
-	}
 
-	public void mouseReleased() {
-		pMouse = null;
-		canShoot = true;
-	}
+        if (pMouse == null) {
+            pMouse = new PVector(mouseX, mouseY);
+        }
+    }
 
-	PVector dragDir = new PVector(0, 0);
+    public void mouseReleased() {
+        pMouse = null;
+        canShoot = true;
+    }
 
-	public void mouseDragged() {
-		dragDir = PVector.sub(new PVector(mouseX, mouseY), pMouse);
-	}
+    public void mouseDragged() {
+        dragDir = PVector.sub(new PVector(mouseX, mouseY), pMouse);
+    }
 
-	void GUI() {
-		noStroke();
-		fill(255, 100);
-		shootButton.show(this);
+    public void shoot() {
+        if (elapsedTime > 300 && bullets.size() < 15 && canShoot) {
+            bullets.add(p.shoot());
+            shoot.play();
+            canShoot = true;
+            startTime = System.currentTimeMillis();
+        }
+    }
 
-		if (mousePressed) {
-			if (!shootButton.update(mouseX, mouseY)) {
-				float padD = (float) (height * 0.1); //Pad diameter
-				noStroke();
-				fill(255, 30);
-				ellipse(pMouse.x, pMouse.y, padD, padD);
-
-				float d = min(pMouse.dist(new PVector(mouseX, mouseY)), padD / 2);
-				PVector dir = PVector.add(PVector.mult(dragDir.normalize(), d), pMouse);
-
-				stroke(0);
-				fill(255, 50);
-				ellipse(dir.x, dir.y, padD / 2, padD / 2);
-
-				//p.addForce(PVector.mult(dragDir, 0.1f));
-			}
-		}
-	}
-
-	public void shoot() {
-		if (elapsedTime > 300 && bullets.size() < 15 && canShoot) {
-			bullets.add(p.shoot());
-			shoot.play();
-			canShoot = true;
-			startTime = System.currentTimeMillis();
-		}
-	}
-
-
-	public static void main(String[] args) {
-		String[] processingArgs = { "Asteroids" };
-		AsteroidsMain mySketch = new AsteroidsMain();
-		PApplet.runSketch(processingArgs, mySketch);
-	}
+    public static void main(String[] args) {
+        String[] processingArgs = { "Asteroids" };
+        AsteroidsMain mySketch = new AsteroidsMain();
+        PApplet.runSketch(processingArgs, mySketch);
+    }
 }

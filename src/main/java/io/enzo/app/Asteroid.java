@@ -7,7 +7,6 @@ import java.util.List;
 import io.enzo.extras.Movable;
 import io.enzo.extras.MyMath;
 import io.enzo.extras.Updatable;
-import io.enzo.gui.CircleButton;
 import processing.core.PVector;
 
 public class Asteroid extends Movable implements Updatable {
@@ -134,7 +133,6 @@ public class Asteroid extends Movable implements Updatable {
 		return angles;
 	}
 
-	// Returns true if the point p lies inside the vertices[] with n vertices 
 	public boolean isInside(PVector p, AsteroidsMain a) {
 		int n = vertices.length;
 		PVector vert[] = new PVector[n];
@@ -142,24 +140,17 @@ public class Asteroid extends Movable implements Updatable {
 		for (int i = 0; i < n; i++)
 			vert[i] = PVector.add(vertices[i], pos);
 
-		// There must be at least 3 vertices in vertices[] 
 		if (n < 3)
 			return false;
 
-		// Create a point for line segment from p to infinite 
 		PVector extreme = new PVector(a.width, p.y);
 
-		// Count intersections of the above line with sides of vertices 
 		int count = 0, i = 0;
 		do {
 			int next = (i + 1) % n;
 
-			// Check if the line segment from 'p' to 'extreme' intersects 
-			// with the line segment from 'vertices[i]' to 'vertices[next]' 
 			if (MyMath.doIntersect(vert[i], vert[next], p, extreme)) {
-				// If the point 'p' is colinear with line segment 'i-next', 
-				// then check if it lies on segment. If it lies, return true, 
-				// otherwise false 
+
 				if (MyMath.orientation(vert[i], p, vert[next]) == 0)
 					return MyMath.onSegment(vert[i], p, vert[next]);
 
@@ -169,7 +160,6 @@ public class Asteroid extends Movable implements Updatable {
 			i = next;
 		} while (i != 0);
 
-		// Return true if count is odd, false otherwise 
 		return count % 2 == 1;
 	}
 
