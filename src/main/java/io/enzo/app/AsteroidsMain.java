@@ -17,6 +17,7 @@ import processing.core.PVector;
 
 public class AsteroidsMain extends PApplet {
 
+    //teste
     static Player p;
 
     boolean up, down, left, right;
